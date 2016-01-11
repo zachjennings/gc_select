@@ -1,0 +1,169 @@
+import numpy as np
+import astropy.modeling.models as models
+from astropy.io import fits
+from pyraf.iraf import artdata
+import subprocess as sp
+import gcSampler
+import seWrapper
+reload(gcSampler)
+
+
+
+class fakeGalaxy(object):
+	'''
+	Class to make fake galaxy images and run photometry on them.
+	'''
+#	def __init__(self,**kwargs):
+#		self.sampler = gcSampler.gcSampler(mock=True,**kwargs)
+
+	def makeAll(self):
+		'''
+		Make image and place sources. 
+		'''
+
+	def doPhot(self):
+		'''
+		
+		'''
+		
+	def makeGalaxyImage(self,model,file_name='fake_gal_model',image_suffix='.fits',dimensions=(1000,1000),back_sig=1.0,
+		starlist_suffix='.starlist',source_suffix='_sources.fits',rdnoise=1.0,zpt=30.0,seeing=4.0,gain=1.,all_filters=True):
+		'''
+		Generate 2D galaxy model using astropy.modelling, and place sources from the GC sampler
+		mock catalog. Assumes GC sampler has already been made. 
+		
+		Inputs:
+		model: astropy 2D model object
+		'''
+		try:
+			data = self.catalog
+		except AttributeError:
+			print 'mock data has not been made'
+			
+		if all_filters:	
+			g = self.catalog[1]
+			i = g - self.catalog[0][:,0]
+			r = i + self.catalog[0][:,1]
+			mags = {'g':g,'r':r,'i':i}
+			
+			for j in mags.keys():
+				image_name = file_name+'_'+j+image_suffix
+				source_image_name = file_name+'_'+j+source_suffix
+				starlist_name = file_name + '_'+j+starlist_suffix
+						
+				img = np.random.normal(size=dimensions,scale=back_sig)
+				x,y = np.meshgrid(np.arange(dimensions[0]),np.arange(dimensions[1]))
+				gal = model(x,y)
+
+				img = img+gal
+
+				hdu = fits.PrimaryHDU(img)
+				hdu.header['CRVAL1'] = 150.0
+				hdu.header['EQUINOX'] =      2.000000000E+03                               
+				hdu.header['RADECSYS']= 'ICRS    '                             
+				hdu.header['CTYPE1']  = 'RA---TAN'               
+				hdu.header['CUNIT1']  = 'deg     '                                     
+				hdu.header['CRVAL1']  =      2.021045442E+02                  
+				hdu.header['CRPIX1']  =     5147.00000000001                  
+				hdu.header['CD1_1']   =     -5.160988076E-05
+				hdu.header['CTYPE2']  = 'DEC--TAN'             
+				hdu.header['CUNIT2']  = 'deg     '                                    
+				hdu.header['CRVAL2']  =      2.102042169E+01                  
+				hdu.header['CRPIX2']  =     686.500000000009                  
+				hdu.header['CD2_2']   =      5.160988076E-05
+
+				hdulist = fits.HDUList([hdu])
+				hdulist.writeto(image_name,clobber=True)
+				
+				self.makeStarList(mags[j],self.catalog[2],file_name=starlist_name)
+				self.placeStars(name=file_name+'_'+j+image_suffix,output=source_image_name,objects=starlist_name,\
+					zpt = zpt,radius=seeing,rdnoise=rdnoise,gain=gain)
+				
+		else:
+			image_name = file_name+image_suffix
+			source_image_name = file_name+source_suffix
+			starlist_name = file_name + starlist_suffix
+			
+			img = np.random.normal(size=dimensions,scale=back_sig)
+			x,y = np.meshgrid(np.arange(dimensions[0]),np.arange(dimensions[1]))
+			gal = model(x,y)
+
+			img = img+gal
+
+			hdu = fits.PrimaryHDU(img)
+			hdu.header['CRVAL1'] = 150.0
+			hdu.header['EQUINOX'] =      2.000000000E+03                               
+			hdu.header['RADECSYS']= 'ICRS    '                             
+			hdu.header['CTYPE1']  = 'RA---TAN'               
+			hdu.header['CUNIT1']  = 'deg     '                                     
+			hdu.header['CRVAL1']  =      2.021045442E+02                  
+			hdu.header['CRPIX1']  =     5147.00000000001                  
+			hdu.header['CD1_1']   =     -5.160988076E-05
+			hdu.header['CTYPE2']  = 'DEC--TAN'             
+			hdu.header['CUNIT2']  = 'deg     '                                    
+			hdu.header['CRVAL2']  =      2.102042169E+01                  
+			hdu.header['CRPIX2']  =     686.500000000009                  
+			hdu.header['CD2_2']   =      5.160988076E-05
+
+			hdulist = fits.HDUList([hdu])
+			hdulist.writeto(image_name,clobber=True)
+			self.makeStarList(self.catalog[1],self.catalog[2],file_name=starlist_name)
+			self.placeStars(name=image_name,output=source_image_name,objects=starlist_name,\
+				zpt=zpt,radius=seeing,rdnoise=rdnoise,gain=gain)
+		
+	def placeStars(self,name='',output='',objects='',zpt=0.0,rdnoise=1.0,radius=4.0,gain=1.,clobber=True):
+		'''
+		Use pyraf artdata.mkobjects to place the artificial stars in the image
+		'''	
+		if clobber:
+			sp.call('rm '+output,shell=True)
+		artdata.mkobjects(input=name,output=output,objects=objects,\
+		                magzero=zpt,gain=gain,rdnoise=rdnoise,radius=radius,background=0.0)
+		
+	def makePhotCatalog(self):
+		'''
+		Create the full photometric catalog
+		'''
+		return 'foo'
+		
+	def runSE(self,image_file,config_file,cat_name='sex.cat'):
+		'''
+		Run SE to get photometry
+		'''
+		sp.call('sex ' +image_file+' -CATALOG_NAME '+cat_name+' -c '+config_file,shell=True)
+		
+	def makeStarList(self,mags,spatial,file_name='fake_gal_model.starlist',clobber=True):
+		'''
+		Write out starlists for mkobjects using the mock catalogs generated by
+		densityGC to be "real sources"
+		'''
+		if clobber:
+			sp.call('rm '+file_name,shell=True)
+
+		write_array = np.hstack((spatial,mags.reshape(mags.size,1)))		
+		with open(file_name,"w+") as the_file:
+			for i in write_array:
+				line = np.array2string(i,max_line_width=np.inf).replace('[','').replace(']','').strip()
+			
+				the_file.write(line + '\n')
+				
+		
+	def getModel(self,model='gaussian',index=4,r_eff=100,amp=10.,center=(500,500),ellip=1.0,theta=0.,x_stddev=100.,y_stddev=100.):
+		'''
+		Conveinence wrapper to make a 2D galaxy model from astropy.modelling
+		
+		Returns:
+			Astropy 2D model, intended to be passed to makeGalaxyImage
+		'''
+		if model == 'sersic':
+			return modeling.functional_models.Sersic2D(n=index,r_eff=r_eff,amplitude=amp,x_0=center[0],y_0=center[1],ellip=ellip,theta=0.)		
+			
+		if model == 'gaussian':
+			return models.Gaussian2D(amplitude=amp,x_mean=center[0],y_mean=center[1],x_stddev=x_stddev,y_stddev=y_stddev,theta=theta)
+		
+	def makeSampler(self,walkers,**kwargs):
+		self.sampler = gcSampler.gcSampler(walkers,mock=True,**kwargs)
+		self.catalog = self.sampler.data
+		
+	
+		
