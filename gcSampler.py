@@ -43,6 +43,9 @@ class gcSampler(object):
 
         n_dim: int
 
+        incompleteness: make data incomplete
+        **fix this, currently breaks if incomplete and completeness both set**
+
         '''
         def __init__(self,n_walkers,catalog=np.zeros(1),n_colors=2,spatial_bimodality=False,\
                 radial_profile=None,ellipticity=False,lum_function=None,n_pop=1,\
@@ -50,6 +53,7 @@ class gcSampler(object):
                 max_rad=10.0,mc_scale=2.0,fixed_cov=True,red_lim=4.0,fg_type='kde',
                 fg_kde_file='cropped_color_dist.p',mock_fg_only=False,completeness='none',center=[0.,0.],\
                 completeness_file='fake_gal_completeness.p',fixed_lum=False,fg_faint=26.,fg_bright=18.,\
+                incomplete=False,
                 fractions=np.array([]),\
                 means=np.array([]),\
                 spatial=np.array([]),
@@ -58,6 +62,7 @@ class gcSampler(object):
                 lum_sig=np.array([])):
 
                 self.mock = mock
+                self.incomplete = incomplete
                 self.mock_fg_only = mock_fg_only
                 self.radial_profile = radial_profile
                 self.ellipticity = ellipticity
@@ -230,8 +235,8 @@ class gcSampler(object):
                         self.lnLike,a=mc_scale)
 
                 #if we're dealing with mock data, make the data appropriately incomplete
-                if self.mock and (self.completeness is not None):
-                        self.MockIncomplete()
+                if self.mock and (self.completeness is not None or self.incomplete):
+                        self.MockIncomplete(completeness_file)
 
                 #Since we're assuming the FG distribution is fixed, we can just calculate the
                 #log likelihood once and use that for the rest of the samples
@@ -260,7 +265,7 @@ class gcSampler(object):
                 Function to make mock catalogs from FG and GC objects.
                 """
                 if self.mock:
-                        mock_gc_color,mock_gc_mags,mock_gc_coordinates = self.gc.genMock(n=self.n_gc,fractions=fractions[:-1])
+                        mock_gc_color,mock_gc_mags,mock_gc_coordinates = self.gc.genMock(n=self.n_gc,fractions=self.fractions[:-1])
                         mock_fg_color,mock_fg_mags,mock_fg_coordinates = self.fg.genMock(n=self.n_fg)
 
                         #create tracker array to keep track of how many GCs and contaminants are added
@@ -282,18 +287,30 @@ class gcSampler(object):
                         coordinates = np.concatenate((real_coordinates,mock_fg_coordinates))
                         self.data = (colors,mags,coordinates)
 
-        def MockIncomplete(self):
+        def MockIncomplete(self, completeness_file):
                 '''
                 Make mock data incomplete if we are dealing with incompleteness.
 
                 Current strategy is just to randomly select from bernoulli RVs.
                 '''
-                comp = stats.bernoulli.rvs(p=np.exp(self.ln_complete))
+
+                #if we're setting imcomplete data for testing purposes,
+                #need to calculate appropriate incompleteness here
+                if self.incomplete:
+                        completeness_obj = pickle.load(open(completeness_file, 'rb'))
+                        ln_complete = completeness_obj.QueryComplete(self.data[1])[:, 0]
+                        comp = stats.bernoulli.rvs(p=np.exp(ln_complete))
+
+                #otherwise, use current completeness array and then
+                #discared unselected GCs
+                else:
+                        comp = stats.bernoulli.rvs(p=np.exp(self.ln_complete))
+                        self.ln_complete = self.ln_complete[comp > 0.5]
+
                 comp_color = self.data[0][comp > 0.5,:]
                 comp_mag = self.data[1][comp > 0.5]
                 comp_spatial = self.data[2][comp > 0.5,:]
                 self.data = (comp_color,comp_mag,comp_spatial)
-                self.ln_complete = self.ln_complete[comp > 0.5]
                 self.gc_array = self.gc_array[comp > 0.5]
 
 

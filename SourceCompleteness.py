@@ -176,6 +176,9 @@ class SourceCompleteness(object):
 
         #def calc_gc_norm(self):
         '''
+
+
+
 class CompleteNormalization(object):
         '''
         Object to calculate p(obs|theta), i.e. normalization of the completeness correction.
@@ -374,6 +377,7 @@ class CompleteNormalization(object):
 
                 #col_like_norm = 1./(np.sum(col_like)*grid_size_2d)
                 #norm_color_like = np.sum(fractions) / color_like
+                col_like_norm = 1.
 
                 color_norm = np.sum(col_like*col_like_norm*\
                         self.color_grid_1[inds_1.ravel().astype(int)][:,1]*\
