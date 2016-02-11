@@ -165,7 +165,7 @@ class gcSampler(object):
 
                         g = self.data[1]
                         i = g - self.data[0][:,0]
-                        r = self.data[0][:,1] - i
+                        r = self.data[0][:,1] + i
 
                         g_comp = completeness_obj_g.QueryComplete(g)[:,0]
                         r_comp = completeness_obj_r.QueryComplete(r)[:,0]
@@ -481,9 +481,11 @@ class gcSampler(object):
 
                 #calculate completeness normalization for GC data, which is dependent on theta
                 if self.completeness is not None:
+                        # if the distributions are being kept fixed, just need to scale the already-calculated normalization
                         if self.fixed_lum and self.fixed_cov:
                                 self.current_gc_complete_norm = np.sum(fractions[:-1])*self.gc_complete_norm
 
+                        #if distributions are being fit for, need to calculate normalization based on the new parameters
                         else:
                                 self.current_gc_complete_norm = self.norm.calc_gc_norm(means,cov,lum_mean,lum_sig,fractions[:-1])
 
@@ -808,6 +810,57 @@ class gcRunner(object):
                 with open(self.filename,"w+") as the_file:
                         for i in self.run_stats:
                                 the_file.write(np.array2string(i,max_line_width=np.inf) + '\n')
+
+
+class WriteSampler(object):
+        """Class to write out stats and the chain for the sampler."""
+        def __init__(self, sampler):
+                self.sampler = sampler
+
+                self.check_parameters()
+                self.check_path()
+
+
+        def check_parameters(self):
+                '''
+                Check the relevant parameters of the sampler and input them in the paths
+                '''
+                self.completeness = sampler.completeness
+                if self.completeness is None:
+                        self.completeness='no_completeness'
+                elif self.completeness == 'mag_only':
+                        self.completeness = ''
+
+
+                self.spatial = self.sampler.spatial
+                if self.spatial is None:
+                        self.spatial = 'no_spatial_'
+                else:
+                        self.spatial='free_spatial_'
+
+                if self.sampler.fixed_cov:
+                        self.fixed_cov = 'fixed_cov_'
+                else:
+                        self.fixed_cov='free_cov_'
+
+                if self.sampler.lum_function == 'mag_only':
+                        self.lum = 'single_lum'
+                else:
+                        self.lum = 'no_lum'
+
+                self.folder_path = self.completeness + self.spatial + self.fixed_cov + self.lum +'/'
+
+        def check_path(self):
+                '''
+                Check to see if the folder path exists
+                '''
+                if not os.path.isdir(self.folder_path):
+                        os.makedirs(self.folder_path)
+
+        def check_file(self):
+                i = 0
+                while
+
 
 def fileRead(filename):
         '''

@@ -294,13 +294,15 @@ class CompleteNormalization(object):
                 grid_size_2d = c1_grid_res * c2_grid_res
                 grid_area = (self.c_red[0] - self.c_blue[0]) * (self.c_red[1]- self.c_blue[1])
 
-                col_like = np.exp(self.fg_density.lnLikeColor(cc1.ravel(),cc2.ravel()))
-                col_like_norm = 1./(np.sum(col_like)*grid_size_2d)
+                ln_col_like = self.fg_density.lnLikeColor(cc1.ravel(),cc2.ravel())
+                ln_col_like_norm = 1. - np.log((np.sum(ln_col_like)*grid_size_2d))
 
-                color_norm = np.sum(col_like*col_like_norm*\
-                        self.color_grid_1[inds_1.ravel().astype(int)][:,1]*\
-                        self.color_grid_2[inds_2.ravel().astype(int)][:,1]*\
-                        grid_size_2d)
+                #color_norm = np.sum(col_like*col_like_norm*\
+                 #       self.color_grid_1[inds_1.ravel().astype(int)][:,1]*\
+                  #      self.color_grid_2[inds_2.ravel().astype(int)][:,1]*\
+                   #     grid_size_2d)
+
+                color_norm = np.sum(self.color_grid_1[inds_1.ravel().astype(int)][:,1]* self.color_grid_2 [inds_2.ravel().astype(int)][:,1] * np.exp(ln_col_like) * grid_size_2d)
 
                 return color_norm
 
@@ -349,16 +351,16 @@ class CompleteNormalization(object):
                 Can only be run after calc_fg_norm() has already been ran.
                 '''
                 if self.filters > 1:
-                        color_norm = self.calc_gc_norm_color(cov,means,fractions)
+                        color_norm = self.calc_gc_norm_color(cov, means, fractions)
 
                 else:
                         color_norm = 1.0
 
-                lum_norm = self.calc_gc_norm_lum(lum_means,lum_sigs)
+                lum_norm = self.calc_gc_norm_lum(lum_means, lum_sigs)
 
                 return lum_norm * color_norm
 
-        def calc_gc_norm_color(self,cov,means,fractions):
+        def calc_gc_norm_color(self, cov, means, fractions):
                 '''
                 Calculate the full p(obs|theta) for the GC color distribution.
                 '''
@@ -370,19 +372,21 @@ class CompleteNormalization(object):
                 grid_area = (self.c_red[0] - self.c_blue[0]) * (self.c_red[1]- self.c_blue[1])
 
                 if self.fixed_cov:
-                        col_like = np.exp(self.gc_density.lnLikeColor(np.stack([cc1.ravel(),cc2.ravel()],axis=1),fractions=fractions))
+                        ln_col_like = self.gc_density.lnLikeColor(np.stack([cc1.ravel(),cc2.ravel()],axis=1),fractions=fractions)
 
                 else:
-                        col_like = np.exp(self.gc_density.lnLikeColor(np.stack([cc1.ravel(),cc2.ravel()],axis=1),cov=cov,means=means,fractions=fractions))
+                        ln_col_like = self.gc_density.lnLikeColor(np.stack([cc1.ravel(),cc2.ravel()],axis=1),cov=cov,means=means,fractions=fractions)
 
                 #col_like_norm = 1./(np.sum(col_like)*grid_size_2d)
-                #norm_color_like = np.sum(fractions) / color_like
-                col_like_norm = 1.
+                #norm_color_like = np.sum(fractions) / col_like
+                #col_like_norm = 1.
 
-                color_norm = np.sum(col_like*col_like_norm*\
-                        self.color_grid_1[inds_1.ravel().astype(int)][:,1]*\
-                        self.color_grid_2[inds_2.ravel().astype(int)][:,1]*\
-                        grid_size_2d)
+                #color_norm = np.sum(col_like*norm_color_like*\
+                 #       self.color_grid_1[inds_1.ravel().astype(int)][:, 1] *\
+                  #      self.color_grid_2[inds_2.ravel().astype(int)][:, 1] *\
+                   #     grid_size_2d)
+
+                color_norm = np.sum(self.color_grid_1[inds_1.ravel().astype(int)][:, 1]* self.color_grid_2[inds_2.ravel().astype(int)][:, 1] * np.exp(ln_col_like) * grid_size_2d)
 
                 return color_norm
 
@@ -401,7 +405,7 @@ class CompleteNormalization(object):
 
                 #calculate probability from bright tail of luminosity distribution
                 #bright_prob = stats.norm.cdf(bright[0],loc=lum_means,sig=lum_sigs)
-                lum_like = np.exp(self.gc_density.lnLikeMag(test_grid,lum_means=lum_means,lum_sigs=lum_sigs))
+                lum_like = np.exp(self.gc_density.lnLikeMag(test_grid, lum_means=lum_means, lum_sigs=lum_sigs))
 
                 #we need to normalize lum_like to account for the fact that the gaussian distribution
                 #extends beyond the bright and faint magnitudes.

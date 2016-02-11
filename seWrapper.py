@@ -17,13 +17,13 @@ class seCatalog(object):
 		self.mags = dict()
 		self.ellipticity = dict()
 		self.fwhm = dict()
-	
+
 	def readSE(self,output_file):
 		'''
 		Read in the given output file
-		'''	
+		'''
 		new_catalog = np.loadtext(output_file)
-		
+
 	def createNewCatalog(self,output_file,filter='g'):
 		new_catalog = np.loadtxt(output_file,comments='#')
 		bad = new_catalog[:,2] > 90
@@ -35,46 +35,46 @@ class seCatalog(object):
 		self.mags[filter] = new_catalog[:,2]
 		self.fwhm[filter] = new_catalog[:,3]
 		self.ellipticity[filter] = new_catalog[:,4]
-		
+
 	def mergeCatalog(self,new_catalog,match_rad=0.5*u.arcsec):
 		'''
-		Merge a given seCatalog into the current one. 
+		Merge a given seCatalog into the current one.
 		'''
-		
+
 		full_old,full_new,d2d,d3d = new_catalog.coords.search_around_sky(self.coords,match_rad)
 		#logic to find the minimum seperation for a given "new"
 		old = np.array([],dtype=int)
 		new = np.array([],dtype=int)
-		
+
 		#Sort all arrays by d2d, so that we know the first value will be the correct one
 		d_sort = np.argsort(d2d)
 		full_old = full_old[d_sort]
 		full_new = full_new[d_sort]
 		d2d = d2d[d_sort]
-		
+
 		self.full_old = full_old
 		self.full_new = full_new
 		self.d2d = d2d
-		
+
 		for i in np.arange(d2d.size):
 			this_new = full_new[i]
 			this_old = full_old[i]
-			
+
 			#if either match has already been "claimed", reject it
 			if this_new not in new and this_old not in old:
 				#old = np.append(old,this_old[np.argmin(d2d.arcsec[full_new == i])])
 				#new = np.append(new,closest_new)
 				old = np.append(old,this_old)
 				new = np.append(new,this_new)
-		
+
 #		for i in new_catalog.coords:
 #			min_dist = np.min(i.seperation(self.coords))
 #			if min_dist < match_rad:
 #				this_new = np.array([min_dist])
-#			
+#
 #			np.append(old,this_old)
 #			np.append(new,this_new[np.argmin(d2d)])
-		
+
 		#logic to find nearest matches for given coordinates
 #		sort = np.argsort(new)
 		self.new=new
@@ -105,9 +105,9 @@ class seCatalog(object):
 			new_ra = np.concatenate([matched_coords.ra.deg,unmatched_old_coords.ra.deg,unmatched_new_coords.ra.deg])
 			new_dec = np.concatenate([matched_coords.dec.deg,unmatched_old_coords.dec.deg,unmatched_new_coords.dec.deg])
 			self.matched_coords = matched_coords
-						
+
 		else:
-			new_ra = np.concatenate([unmatched_old_coords.ra.deg,unmatched_new_coords.ra.deg])	
+			new_ra = np.concatenate([unmatched_old_coords.ra.deg,unmatched_new_coords.ra.deg])
 			new_dec = np.concatenate([unmatched_old_coords.dec.deg,unmatched_new_coords.dec.deg])
 
 		self.unmatched_old_coords = unmatched_old_coords
@@ -126,7 +126,7 @@ class seCatalog(object):
 			detected=np.array([])
 		undetected = np.zeros(unmatched_old_coords.ra.size + unmatched_new_coords.ra.size,dtype=bool)
 		self.all_detected = np.concatenate([detected,undetected])
-		
+
 		#Magnitudes:
 		#iterate over the keys for each catalog in magnitude
 		for i in self.mags.keys():
@@ -135,15 +135,15 @@ class seCatalog(object):
 			non_detections = np.zeros(unmatched_new_coords.ra.size) + 99.999
 			self.non_detections_new = non_detections
 			self.mags[i] = np.concatenate([matched_mags,unmatched_mags,non_detections])
-			
+
 		for i in new_catalog.mags.keys():
 			matched_mags = new_catalog.mags[i][new]
 			unmatched_mags = new_catalog.mags[i][~idx_new]
 			non_detections = np.zeros(unmatched_old_coords.ra.size) + 99.999
 			self.non_detections_old = non_detections
 			self.mags[i] = np.concatenate([matched_mags,non_detections,unmatched_mags])
-		
-		#FWHM:	
+
+		#FWHM:
 		#next iterate over the keys for each catalog in FWHM
 		for i in self.fwhm.keys():
 			matched_fwhm = self.fwhm[i][old]
@@ -156,8 +156,8 @@ class seCatalog(object):
 			unmatched_fwhm = new_catalog.fwhm[i][~idx_new]
 			non_detections = np.zeros(unmatched_old_coords.ra.size) + 99.999
 			self.fwhm[i] = np.concatenate([matched_fwhm,non_detections,unmatched_fwhm])
-	
-		#Ellipticity:	
+
+		#Ellipticity:
 		#next iterate over the keys for each catalog in ellipticity
 		for i in self.ellipticity.keys():
 			matched_ellip = self.ellipticity[i][old]
@@ -170,7 +170,7 @@ class seCatalog(object):
 			unmatched_ellip = new_catalog.ellipticity[i][~idx_new]
 			non_detections = np.zeros(unmatched_old_coords.ra.size) + 99.999
 			self.ellipticity[i] = np.concatenate([matched_ellip,non_detections,unmatched_ellip])
-			
+
 		truth = np.zeros((self.coords.ra.size,len(self.mags.keys())),dtype=bool)
 		keys = self.mags.keys()
 		for i in range(len(keys)):
@@ -178,20 +178,20 @@ class seCatalog(object):
 
 		self.all_detected = np.all(truth,axis=1)
 		self.id = np.arange(self.all_detected.size)
-		
+
 	def getXY(self,image):
 		'''
 		Return coordinates of sources in pixel coordinates, if desired.
-		
+
 		Inputs:
 			Fits: fits image from which to take WCS
-			
+
 		Returns:
 			x,y : x and y pixel coordinates for each source
 		'''
 		wcs = WCS(image)
 		return wcs.wcs_world2pix(self.coords.ra*u.degree,self.coords.dec*u.degree,1)
-	
+
 	def coordPrint(self,fileroot,size='1.0"',color='green',write_comment=True,select='',det=True):
 		'''
 		select = only pick detected mags filter
@@ -215,7 +215,7 @@ class seCatalog(object):
 						the_key = keys[1]
 
 					mag = self.mags[the_key][good[i]]
-					
+
 					comment='# text = {ID='+str(self.id[good[i]])+' '+\
 					str(the_key)+'='+str(mag)+'}'
 				else:
@@ -242,32 +242,32 @@ class fakeStarTests(object):
 		self.config_file=config_file
 		self.wcs = WCS(image)
 		self.write_catalog = write_catalog
-		
+
 		if self.write_catalog:
 			self.true_mags,self.true_x,self.true_y = self.unpackPhotCatalog(self.phot)
-			
+
 	def unpackPhotCatalog(self,cat):
 		true_x,true_y = self.wcs.wcs_world2pix(cat.coords.ra.deg,cat.coords.dec.deg,1)
 		true_mags = cat.mags[cat.mags.keys()[0]]
 		return true_mags,true_x,true_y
-		
+
 	def placeStars(self,name='',output='',objects=''):
 		'''
 		Use pyraf artdata.mkobjects to place the artificial stars in the image
-		'''	
+		'''
 		artdata.mkobjects(input=name,output=output,objects=objects,\
 		                magzero=self.zpt,gain=self.gain,rdnoise=self.rd_noise,radius=self.seeing,background=0.0)
-	
-	
+
+
 	def makeStarList(self,name,n_stars=1000,min_mag=24,max_mag=28,x_range=(0,1000),y_range=(0,1000)):
 		'''
 		Use pyraf artdata.starlist to make an input starlist
-		'''	
+		'''
 		artdata.starlist(name,nstars=n_stars,xmax=self.header['naxis1'],ymax=self.header['naxis2'],\
 			minmag=min_mag,maxmag=max_mag,luminosity='uniform',lseed='INDEF')
-			
+
 		fake_cat = np.loadtxt(name)
-		
+
 		#If we're also writing out the true clusters in this step, need to re-make
 		#the starlist so that it includes the photometry.
 		if self.write_catalog:
@@ -286,7 +286,7 @@ class fakeStarTests(object):
 
 		#return the fake catalogs so that we know what to check against
 		return (fake_cat[:,0],fake_cat[:,1],fake_cat[:,2])
-				
+
 	def genFakeCatalogs(self,n_iter=1,min_mag=22.,max_mag=26.,n_stars=1000,overwrite=False):
 		'''
 		Perform photometry on the fake catalogs
@@ -298,7 +298,7 @@ class fakeStarTests(object):
 			ini = True
 		else:
 			ini = False
-	
+
 		for i in range(n_iter):
 			starlist_name = self.name+'.starlist'+str(i)
 			fake_image = self.name+'.fake'+str(i)+'.fits'
@@ -306,33 +306,33 @@ class fakeStarTests(object):
 			sp.call('rm '+starlist_name,shell=True)
 			sp.call('rm '+fake_image,shell=True)
 
-				
+
 			starlist_x,starlist_y,starlist_mags = self.makeStarList(starlist_name,min_mag=min_mag,max_mag=max_mag,n_stars=n_stars)
 			starlist_mags={'input':starlist_mags}
 			starlist_fwhm = {'input':np.zeros(starlist_x.size)+99.999}
 			starlist_ellipticity = {'input':np.zeros(starlist_x.size)+99.999}
-			
+
 			self.placeStars(name=self.name,output=fake_image,\
 					objects=starlist_name)
-			
+
 			starlist_ra,starlist_dec = self.wcs.wcs_pix2world(starlist_x,starlist_y,1)
-			
+
 			starlist_coords = coords.SkyCoord(ra=starlist_ra*u.degree,\
 				dec=starlist_dec*u.degree)
-			
+
 			self.starlist_cat = seCatalog()
 			self.starlist_cat.coords = starlist_coords
 			self.starlist_cat.mags = starlist_mags
 			self.starlist_cat.fwhm = starlist_fwhm
 			self.starlist_cat.ellipticity=starlist_ellipticity
-		
+
 			self.runSE(fake_image,self.config_file,cat_name=recovered_cat_name)
 			self.recovered_cat = seCatalog()
 			self.recovered_cat.createNewCatalog(recovered_cat_name,filter='recovered')
-			
+
 			self.starlist_cat.mergeCatalog(self.recovered_cat)
 			self.starlist_cat.mergeCatalog(self.phot)
-		
+
 			#create new photometry lists containing only the new stars
 			old_phot = self.starlist_cat.mags['input'] > 99
 			input_mags = self.starlist_cat.mags['input'][~old_phot]
@@ -347,19 +347,19 @@ class fakeStarTests(object):
 			self.fake_cats[key] = np.vstack((input_mags,recovered_mags))
 			self.fake_cats_x[key] = input_pix_x
 			self.fake_cats_y[key] = input_pix_y
-			
+
 			un_rec = recovered_mags > 99
 			self.unrec_cat=seCatalog()
 			self.unrec_cat.coords = input_coords[un_rec]
 			self.unrec_cat.id = np.zeros(un_rec.size)
 			self.unrec_cat.mags = {'input':input_mags[un_rec]}
-			
+
 			self.rec_cat=seCatalog()
 			self.rec_cat.coords = input_coords[~un_rec]
 			self.rec_cat.id = np.zeros(un_rec.size)
 			self.rec_cat.mags = {'input':input_mags[~un_rec]}
-		
-	
+
+
 	def makePSF(self):
 		self.runner.makePSF()
 
@@ -369,9 +369,8 @@ class fakeStarTests(object):
 		'''
 		sp.call('sex ' +image_file+' -CATALOG_NAME '+cat_name+' -c '+config_file,shell=True)
 
-		
-		
-		
-		
-		
-		
+
+
+
+
+
