@@ -858,8 +858,9 @@ class WriteSampler(object):
                         os.makedirs(self.folder_path)
 
         def check_file(self):
-                i = 0
-                while
+                '''
+                Find the
+                '''
 
 
 def fileRead(filename):
