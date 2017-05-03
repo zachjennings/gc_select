@@ -26,7 +26,7 @@ class colorKDE(object):
 			cv=folds)
 		self.grid.fit(self.data)
 		self.optimal_bandwidth=self.grid.best_params_['bandwidth']
-		print 'Optimal bandwidth: ' + str(self.optimal_bandwidth)
+		print('Optimal bandwidth: ' + str(self.optimal_bandwidth))
 		
 	def score_samples(self,x):
 		'''
