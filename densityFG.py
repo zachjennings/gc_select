@@ -151,7 +151,7 @@ class densityFG(object):
 
         if self.lum:
             mags_like = self.lnLikeMag(mags)
-        col_like = self.lnLikeColor(gi,ri) + self.ln_color_norm
+        col_like = self.lnLikeColor(gi,ri) - self.ln_color_norm
         #col_like = 0.0
         spatial_like = self.lnLikeSpatial()
 

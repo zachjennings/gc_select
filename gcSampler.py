@@ -39,6 +39,9 @@ default_fractions_bim = np.array([0.25,0.25,0.5])
 default_lum_mean = np.array([23.])
 default_lum_sig = np.array([1.4])
 
+default_mean_priors_bimodal = np.array([[1.3,0.5],[0.5,0.1]])
+default_mean_priors_single = np.array([[1.3,0.5],[0.5,0.1]])
+
 
 class gcSampler(object):
     '''
@@ -74,7 +77,8 @@ class gcSampler(object):
         ri_offset=0.0,gi_offset=0.0,gi_divide=0.85,ri_divide=0.28,
         fg_mag_kde_file='',fg_mag_complete_file='',const_fg_mag_density=False,
         ra_limits=[0.0,0.0],dec_limits=[0.0,0.0],radial_cut=True,const_fg_density=False,
-        spatial_norm_grid=0.005):
+        spatial_norm_grid=0.005,
+        mean_priors=np.array([])):
 
         self.mock = mock
         self.incomplete = incomplete
@@ -91,6 +95,14 @@ class gcSampler(object):
         
         self.gi_divide = gi_divide
         self.ri_divide = ri_divide
+        
+        if mean_priors.shape[0] < 2:
+            if self.n_pop == 1:
+                self.mean_priors = default_mean_priors_single
+            elif self.n_pop == 2:
+                self.mean_priors = default_mean_priors_bimodal
+        else:
+            self.mean_priors = mean_priors
         
 
         if lum_mean.size < 1:
@@ -553,7 +565,7 @@ class gcSampler(object):
 
         Currently only works for single mean
         '''
-        if mean < 18 or mean > 28:
+        if mean < 18 or mean > 25:
             return -np.inf
         return 0.0
 
@@ -578,7 +590,7 @@ class gcSampler(object):
         cov_0 = cov[0]
 
         #test range of covariance terms in matrix 0
-        if  cov_0[0,0] < 0.000001 or cov_0[0,0] > 0.3 or  cov_0[1,1] < 0.000001 or cov_0[1,1] > 0.3 \
+        if  cov_0[0,0] < 0.000001 or cov_0[0,0] > 0.3 or  cov_0[1,1] < 0.000000 or cov_0[1,1] > 0.3 \
              or cov_0[1,0] < 0.000001 or np.abs(cov_0[1,0]**2 / cov_0[0,0] / cov_0[1,1]) > 1.0:
             lp_cov_0 = -np.inf
         else:
@@ -590,7 +602,7 @@ class gcSampler(object):
         if self.bimodality:
             cov_1 = cov[1]
             #test range of covariance terms in matrix 1
-            if  (cov_1[0,0] < 0.000001) or (cov_1[0,0] > 0.2) or cov_1[1,1] < 0.000001 or cov_1[1,1] > 0.2  \
+            if  (cov_1[0,0] < 0.000001) or (cov_1[0,0] > 0.2) or cov_1[1,1] < 0.000000 or cov_1[1,1] > 0.2  \
              or cov_1[1,0] < 0.000001 or np.abs(cov_1[1,0]**2 / cov_1[0,0] / cov_1[1,1]) > 1.0:
                 lp_cov_1 = -np.inf
             else:
@@ -614,7 +626,7 @@ class gcSampler(object):
 
         if self.n_pop==1:
         #test location of mean terms in means_0
-            if  (means_0[0] > 1.5) or (means_0[0] < 0.4) or (0.7 < means_0[1]) or (means_0[1] < 0.0):
+            if  (means_0[0] > self.mean_priors[0,0]) or (means_0[0] < self.mean_priors[1,0]) or (self.mean_priors[1,1] > means_0[1]) or (means_0[1] > self.mean_priors[1,0]):
                 lp_means_0 = -np.inf
             else:
                 lp_means_0 = 0.0
@@ -623,8 +635,8 @@ class gcSampler(object):
         else:
             means_1 = means[1]
             
-            if (means_0[0] < self.gi_divide) or (self.gi_divide < means_1[0]) or (means_1[0] < 0.3) or (means_1[1] < 0.1) or (means_0[0] > 1.4) or (means_0[1] > 0.4) or (means_0[1] < means_1[1]):# \
-               # or (means_0[1] < self.ri_divide) or (self.ri_divide < means_1[1]):
+            if (means_0[0] < self.gi_divide) or (self.gi_divide < means_1[0]) or (means_1[0] < self.mean_priors[1,0]) or (means_1[1] < self.mean_priors[1,1]) or \
+                (means_0[0] > self.mean_priors[0,0]) or (means_0[1] > self.mean_priors[0,1]) or (means_0[1] < means_1[1]) or (means_0[1] < self.ri_divide) or (self.ri_divide < means_1[1]):
                 lp_means_0 = -np.inf
             else:
                 lp_means_0 = 0.0
@@ -657,14 +669,14 @@ class gcSampler(object):
         #return 0.0
 
     def lnPriorLuminosity(self,mean):
-        if mean[0] < 18 or lum[0] > 26.0:
+        if mean[0] < 18 or lum[0] > 25.0:
             return -np.inf
         return -np.log(lum[1])
 
     def lnPriorSpatial(self,spatial):
 
         #check scale radius prior, returning non-informative if range OK
-        if spatial[0] > 0.0:
+        if (spatial[0] > 0.0) & (spatial[0] < 1.0):
             lp_r_s = np.log(1./spatial[0])
         else:
             lp_r_s = -np.inf
