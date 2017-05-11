@@ -147,7 +147,7 @@ class densityGC(object):
 
         return scipy.misc.logsumexp(ln_like,axis=0)
 
-    def lnLikeColor(self,color,cov=np.array([]),means=np.array([]),fractions=[1.]):
+    def lnLikeColor(self,color,cov=np.array([]),means=np.array([]),fractions=[1.],return_seperate_probs=False):
         '''
         Return the log of i multivariate Gaussians
 
@@ -193,6 +193,9 @@ class densityGC(object):
                 self.ln_like_col[i,:] = stats.multivariate_normal.logpdf(color,mean=means[i],cov=cov[i])
             #self.ln_like_col[i,:] = 0.0
             self.ln_like_all[i,:] = np.log(fractions[i]) + self.ln_like_col[i,:]
+            
+        if return_seperate_probs:
+            return self.ln_like_all
 
         return scipy.misc.logsumexp(self.ln_like_all,axis=0)
 
@@ -270,7 +273,7 @@ class densityGC(object):
         return stats.pareto.logpdf(dist,scale=r_s,loc=-1)# - np.log(2 * np.pi)
 
     def lnLike(self,data,fractions=[1.0],means=[1.0],cov=[1.0],spatial=[1.0],\
-        lum_means=[1.0],lum_sigs=[1.0]):
+        lum_means=[1.0],lum_sigs=[1.0],return_seperate_probs=False):
         '''
         Return the log likelihood for the full sample
 
@@ -292,7 +295,7 @@ class densityGC(object):
             returns the summed color and spatial likelihood for every data point
         '''
         color,mags,positions = data
-        col_like = self.lnLikeColor(color,cov,means,fractions=fractions)
+        col_like = self.lnLikeColor(color,cov,means,fractions=fractions,return_seperate_probs=return_seperate_probs)
         self.col_like = col_like
 
         if self.lum:

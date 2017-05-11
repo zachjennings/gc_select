@@ -575,7 +575,7 @@ class gcSampler(object):
 
         Currently only works for single population
         '''
-        if sigma < 0.0000001:
+        if sigma < 0.6:
             return -np.inf
         else:
             return -2.*np.log(sigma)
@@ -773,6 +773,12 @@ class gcSampler(object):
         lnLikeFG = np.log(fractions[-1]) + self.fg.lnLike(self.data)
         self.p_gc = np.exp(lnLikeGC - np.logaddexp(lnLikeGC,lnLikeFG))
         self.p_fg = 1.-self.p_gc
+        
+        if self.n_pop == 2:
+            self.gc_individual_like = self.gc.lnLike(self.data,fractions=fractions[:-1],\
+                spatial=spatial,cov=cov,means=means,lum_means=lum_mean,lum_sigs=lum_sig,return_seperate_probs=True)
+            self.p_blue = np.exp(self.gc_individual_like[1,:] - np.logaddexp(lnLikeGC,lnLikeFG))
+            self.p_red = np.exp(self.gc_individual_like[0,:] - np.logaddexp(lnLikeGC,lnLikeFG))
 
         if self.mock:
             self.false_neg = self.p_gc[:self.n_gc-1] < 0.5
